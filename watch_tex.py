@@ -45,6 +45,13 @@ class FileWatcher(FileSystemEventHandler):
 
         super().__init__(*args, **kwargs)
 
+    def on_moved(self, event):
+        # some editors move a file instead of editing a file;
+        # treat these events `moved` as `modified` events
+        if isinstance(event, watchdog.events.FileMovedEvent):
+            ev = watchdog.events.FileModifiedEvent(event.dest_path)
+            self.on_modified(ev)
+
     def on_modified(self, event):
         if os.path.abspath(event.src_path) != os.path.abspath(self.full_path):
             return
