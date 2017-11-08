@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import sys, time, subprocess
+import logging
 import os.path
 import hashlib
 import watchdog
@@ -25,9 +26,9 @@ class Complier(object):
             logging.error('processing error with {}'.format(command))
             #print(err)
             out = err.output
-        print("\n\nXXXX\n\n")
+        print("\n\n")
         print(out.split('\n'))
-        print("XXXX\n\n")
+        print("\n\n")
     
 
 
@@ -53,7 +54,7 @@ class FileWatcher(FileSystemEventHandler):
                 # the hash didn't change, so don't do anything
                 return
             self.hashes[self.full_path] = f_hash
-            print('changed hash', self.full_path, f_hash)
+            logging.info('File changed \'{}\' with hash {}'.format(self.full_path, f_hash))
 
             c = Complier(self.full_path)
             c.execute()
@@ -62,8 +63,9 @@ class FileWatcher(FileSystemEventHandler):
 def watch_files(files):
     observer = Observer()
     for f in files.keys():
-        f_dir = os.path.dirname(os.path.abspath(f))
-        observer.schedule(FileWatcher(os.path.abspath(f)), f_dir)
+        f_dir, f_path = os.path.dirname(os.path.abspath(f)), os.path.abspath(f)
+        logging.info("Monitoring '{}' in directory '{}'".format(f_path, f_dir))
+        observer.schedule(FileWatcher(f_path), f_dir)
     observer.start()
 
     return observer
@@ -71,7 +73,7 @@ def watch_files(files):
 
 if __name__ == '__main__':
     import argparse
-    import logging
+    logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser(description='Watch and recompile .tex files when changed.')
     parser.add_argument('tex_files', metavar='TEX_FILES', type=str, nargs='+',
