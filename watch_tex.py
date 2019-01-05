@@ -648,8 +648,8 @@ if __name__ == '__main__':
     parser.add_argument('tex_files', metavar='TEX_FILES', type=str, nargs='+',
                         help='.tex files to watch')
     parser.add_argument('--engine', dest='engine',
-                        default='xelatex',
-                        help='tex engine to use (default: xelatex)')
+                        default='lualatex',
+                        help='tex engine to use (default: lualatex)')
 
     args = parser.parse_args()
 
