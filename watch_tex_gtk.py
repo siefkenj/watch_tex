@@ -643,6 +643,34 @@ class WatchedFile:
         self.last_compile_start = 0
         self.last_compile_end = 1
         self.estimated_complete = 0
+
+        # if there is a symbolic link to a file, or the file uses
+        # an \input, we want to watch the base files or the \input
+        # files, but trigger a rebuild on the parent.
+        self.child_watchers = []
+        self.child_watched_filenames = []
+
+        # symlinks don't trigger changes, so watch the parent
+        if pathlib.Path(self.full_path).is_symlink():
+            self.child_watched_filenames.append(str(pathlib.Path(self.full_path).resolve()))
+
+        # check for any \input commands and watch the files they reference
+        with open(self.full_path) as f:
+            for l in f.readlines():
+                matches = re.findall(r"^\s*\\input{([^}]*)}", l)
+                if matches:
+                    path = pathlib.Path("{}/{}".format(self.dirname, matches[0])).resolve()
+                    print("yy",path, path.is_file())
+                    if not path.is_file():
+                        # if path isn't a file, maybe it doesn't have the ".tex"
+                        if path.with_suffix(".tex").is_file():
+                            path = path.with_suffix(".tex")
+                        else:
+                            continue
+                    self.child_watched_filenames.append(str(path))
+
+
+
     
     def __repr__(self):
         return "WatchedFile(None, '{}', '{}')".format(self.basename, self.dirname)
@@ -664,9 +692,34 @@ class WatchedFile:
         self.observer.schedule(self.file_watcher, self.dirname)
         self.observer.start()
 
+        for path in self.child_watched_filenames:
+            self._watch_child(path)
+
+    def _watch_child(self, path):
+        """Watch `path`, but when `path` changes, trigger a recompile
+        of `self`. This used for watching symbolic links of `\import` """
+        print("Watching child", path)
+        parsed = parse_filenames(path)[0]
+        if not parsed['is_file']:
+            print("Cannot watch", path, ", not a file.")
+            return
+
+        file_watcher = FileWatcher(path)
+        file_watcher.change_callback = self._on_change
+        
+        observer = Observer()
+        observer.schedule(file_watcher, str(pathlib.Path(path).parent))
+        observer.start()
+
+        self.child_watchers.append(observer)
+
+
     def unwatch(self):
         print("Unwatching", self)
         self.observer.stop()
+
+        for observer in self.child_watchers:
+            observer.stop()
 
     def as_list_store_row(self):
         return (str(self), self.status, self.estimated_complete, self.basename)
