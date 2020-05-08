@@ -922,7 +922,10 @@ class WatchTexWindow(Gtk.ApplicationWindow):
         self.watched_file_list.on_change = self.async_update
 
         self.builder = Gtk.Builder()
-        self.builder.add_from_file("ui.glade")
+        # look for the ui.glade file in the directory where the executable is located,
+        # not the directory where we launched from
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        self.builder.add_from_file("{}/ui.glade".format(dir_path))
 
         # stuff the contents of main_window into self
         main_window = self.builder.get_object("main_window")
